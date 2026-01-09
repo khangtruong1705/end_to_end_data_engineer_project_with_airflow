@@ -44,3 +44,4 @@ An ETL project processing the Brazilian E-Commerce public dataset from Kaggle: d
 **Power BI File**: Available in `/dashboard/` for full exploration.
 
 ## Project Structure
+![Project Architecture](dashboard/project_architecture.jpg)
