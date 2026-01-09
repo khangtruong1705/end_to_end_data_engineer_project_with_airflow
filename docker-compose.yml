@@ -1,0 +1,105 @@
+# docker-compose.yml - Apache Airflow 3.1.5 với LocalExecutor cho local development
+version: '3.8'
+
+networks:
+  airflow_network:
+    driver: bridge
+
+x-airflow-common:
+  &airflow-common
+  image: apache/airflow:3.1.5
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    # Fix hostname để đọc log đúng
+    AIRFLOW__CORE__HOSTNAME_CALLABLE: airflow.utils.net.get_host_ip_address
+    # Fix lỗi Connection refused + 404 Mapped Task Instance trong Airflow 3.x LocalExecutor
+    AIRFLOW__API_AUTH__JWT_SECRET: 'abcdef'
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''  # Tự generate lần đầu
+    _PIP_ADDITIONAL_REQUIREMENTS: -r /opt/airflow/requirements.txt
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    PYTHONPATH: "/opt/airflow:${PYTHONPATH:-}"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./config:/opt/airflow/config
+    - ./.env:/opt/airflow/.env
+    - ./etl:/opt/airflow/etl
+    - ./requirements.txt:/opt/airflow/requirements.txt
+    - ./data:/opt/airflow/data
+    - ./datawarehouse:/opt/airflow/datawarehouse
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks:
+    - airflow_network
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - airflow_network
+
+  airflow-api-server:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    networks:
+      - airflow_network
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+    networks:
+      - airflow_network
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    restart: always
+    networks:
+      - airflow_network
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        if [[ -f "/opt/airflow/requirements.txt" ]]; then
+          pip install --user -r /opt/airflow/requirements.txt
+        fi
+        airflow db migrate
+    networks:
+      - airflow_network
+
+volumes:
+  postgres-db-volume:
