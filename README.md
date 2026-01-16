@@ -11,13 +11,13 @@ An ETL project processing the Brazilian E-Commerce public dataset from Kaggle: d
 - Power BI (Dashboard)
 
 ## Architecture
-![Architecture Diagram](dashboard/architecture.jpg)
+![Architecture Diagram](dashboard/project_architecture.jpg)
 
 ![Data Model](dashboard/data_model.jpg)
 
 ![Data Pipeline](dashboard/data_pipeline.jpg)
 
-![Airflow UI](dashboard/airflow_ui.jpg)
+![Airflow UI](dashboard/airflow_UI.jpg)
 
 ## How to Run
 1. Clone the repository:  
@@ -45,3 +45,4 @@ An ETL project processing the Brazilian E-Commerce public dataset from Kaggle: d
 
 ## Project Structure
 ![Project Architecture](dashboard/project_architecture.jpg)
+
